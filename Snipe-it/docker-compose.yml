@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+
+  snipe-mysql:
+    container_name: snipe-mysql
+    image: mysql
+    env_file:
+      - ./snipe-it.env
+    volumes:
+      - snipesql-vol:/var/lib/mysql #named volume mu dava ime za da znae koj volume e na mysql koga ke se izbrise container da ostane volumenot
+    command: --default-authentication-plugin=mysql_native_password
+    expose:
+      - "3306"
+    networks:
+      - snipenet
+
+  snipe-it:
+    image: snipe/snipe-it
+    env_file:
+      - ./snipe-it.env
+    ports:
+      - "3051:80"
+    depends_on:
+      - snipe-mysql
+    networks:
+      - snipenet
+
+volumes:
+  snipesql-vol:
+networks:
+    snipenet:
+      driver: bridge

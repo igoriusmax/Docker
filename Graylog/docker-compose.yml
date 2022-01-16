@@ -1,0 +1,82 @@
+version: '3'
+services:
+    # MongoDB: https://hub.docker.com/_/mongo/
+    mongo:
+      image: mongo:4.2
+      volumes:
+        - mongo_data:/data/db
+      networks:
+        - graylog
+    # Elasticsearch: https://www.elastic.co/guide/en/elasticsearch/reference/7.10/docker.html
+    elasticsearch:
+      image: docker.elastic.co/elasticsearch/elasticsearch:7.16.2
+      volumes:
+        - es_data:/usr/share/elasticsearch/data
+      environment:
+        - http.host=0.0.0.0
+        - transport.host=localhost
+        - network.host=0.0.0.0
+        - TZ=Europe/Berlin
+        - "ES_JAVA_OPTS=-Dlog4j2.formatMsgNoLookups=true -Xms1024m -Xmx1024m"
+      ulimits:
+        memlock:
+          soft: -1
+          hard: -1
+      deploy:
+        resources:
+          limits:
+            memory: 1g
+      networks:
+        - graylog
+    # Graylog: https://hub.docker.com/r/graylog/graylog/
+    graylog:
+      image: graylog/graylog:4.2.5
+      volumes:
+        - graylog_data:/usr/share/graylog/data
+        - "/etc/timezone:/etc/timezone:ro"
+        - "/etc/localtime:/etc/localtime:ro"
+      environment:
+        # CHANGE ME (must be at least 16 characters)!
+        - GRAYLOG_PASSWORD_SECRET=enter_hard_to_guess_password
+        # Password: NE-admin
+        - GRAYLOG_ROOT_PASSWORD_SHA2=tuka_hash_na-lozinka_na_ne-admin_akaunt
+        - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
+        - TZ=Europe/Berlin
+        - GRAYLOG_TIMEZONE=Europe/Berlin
+      entrypoint: /usr/bin/tini -- wait-for-it elasticsearch:9200 --  /docker-entrypoint.sh
+      networks:
+        - graylog
+      restart: always
+      depends_on:
+        - mongo
+        - elasticsearch
+      ports:
+        # Graylog web interface and REST API
+        - 9000:9000
+        # Syslog TCP
+        - 1514:1514
+        # Syslog UDP
+        - 1514:1514/udp
+        # GELF TCP
+        - 12201:12201
+        # GELF TCP
+        - 12202:12202
+        # GELF TCP
+        - 12203:12203
+        # GELF TCP
+        - 12204:12204
+        # GELF TCP
+        - 12206:12206
+        # GELF UDP
+        - 12207:12207/udp
+networks:
+    graylog:
+      driver: bridge
+  # Volumes for persisting data, see https://docs.docker.com/engine/admin/volumes/volumes/
+volumes:
+  mongo_data:
+    driver: local
+  es_data:
+    driver: local
+  graylog_data:
+    driver: local
